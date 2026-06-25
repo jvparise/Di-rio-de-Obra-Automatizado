@@ -39,6 +39,8 @@ with open(_config_path, 'r', encoding='utf-8') as _f:
 
 TEMPLATE = _config['template_path']
 BASE_OBRAS = _config['base_obras']
+EMPRESA = _config.get('empresa', '')
+ENGENHEIRO_RESP = _config.get('engenheiro_responsavel', '')
 
 
 def criar_diario(dados, fotos):
@@ -70,6 +72,10 @@ def criar_diario(dados, fotos):
 
     ws['A7'] = f'OBRA: {obra}'
     ws['I7'] = data_str
+    if EMPRESA:
+        ws['A9'] = f'EMPRESA EXECUTORA: {EMPRESA}'
+    if ENGENHEIRO_RESP:
+        ws['A10'] = f'ENGENHEIRO RESPONSÁVEL: {ENGENHEIRO_RESP}'
 
     descricao = dados.get('descricao', '').strip()
     if descricao:
