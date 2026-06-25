@@ -1,0 +1,19 @@
+{
+  "name": "diariobot",
+  "version": "1.0.0",
+  "description": "Bot WhatsApp para diário de obra",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^7.0.0-rc13",
+    "qrcode": "^1.5.4",
+    "sharp": "^0.35.2"
+  },
+  "allowScripts": {
+    "puppeteer@24.38.0": true,
+    "@whiskeysockets/baileys@7.0.0-rc13": true,
+    "protobufjs@7.6.4": true
+  }
+}

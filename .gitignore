@@ -1,0 +1,10 @@
+node_modules/
+auth/
+media/
+.wwebjs_auth/
+.wwebjs_cache/
+wa-version/
+qrcode.png
+bot_output.txt
+teste_input.json
+*.log
