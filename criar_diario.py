@@ -4,6 +4,7 @@ import os
 import shutil
 from datetime import datetime
 import openpyxl
+import win32com.client
 
 MESES = {
     1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril',
@@ -105,6 +106,20 @@ def criar_diario(dados, fotos):
 
     wb.save(caminho_excel)
 
+    # Gera PDF da aba do dia
+    caminho_pdf = caminho_excel.replace('.xlsx', '.pdf')
+    try:
+        excel_app = win32com.client.Dispatch('Excel.Application')
+        excel_app.Visible = False
+        excel_app.DisplayAlerts = False
+        wb_com = excel_app.Workbooks.Open(caminho_excel)
+        ws_com = wb_com.Worksheets(sheet_name)
+        ws_com.ExportAsFixedFormat(0, caminho_pdf)
+        wb_com.Close(False)
+        excel_app.Quit()
+    except Exception as e:
+        caminho_pdf = None
+
     for i, foto_path in enumerate(fotos):
         if os.path.exists(foto_path):
             ext = os.path.splitext(foto_path)[1].lower() or '.jpg'
@@ -115,6 +130,7 @@ def criar_diario(dados, fotos):
         'sucesso': True,
         'pasta': pasta_dia,
         'excel': caminho_excel,
+        'pdf': caminho_pdf,
         'fotos': len(fotos)
     }
     print(json.dumps(resultado, ensure_ascii=False))

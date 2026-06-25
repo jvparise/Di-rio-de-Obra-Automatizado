@@ -79,7 +79,8 @@ async function processarSessao(sock, groupId) {
         try {
             const r = JSON.parse(saida);
             if (r.sucesso) {
-                await sock.sendMessage(jid, { text: `✅ *Diário criado!*\n📁 ${r.pasta}\n📸 Fotos: ${r.fotos}` });
+                const pdfInfo = r.pdf ? `\n📄 PDF gerado!` : '';
+                await sock.sendMessage(jid, { text: `✅ *Diário criado!*\n📁 ${r.pasta}\n📸 Fotos: ${r.fotos}${pdfInfo}` });
             } else {
                 await sock.sendMessage(jid, { text: `❌ Erro: ${r.erro}` });
             }
