@@ -8,6 +8,7 @@ const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), '
 
 const PYTHON = config.python_path;
 const SCRIPT = path.join(__dirname, 'criar_diario.py');
+const SCRIPT_RELATORIO = path.join(__dirname, 'relatorio_semanal.py');
 const MEDIA_DIR = path.join(__dirname, 'media');
 const AUTH_DIR = path.join(__dirname, 'auth');
 const QR_PATH = path.join(__dirname, 'qrcode.png');
@@ -50,6 +51,18 @@ function parseMensagem(texto) {
 
     if (linhasDescricao.length > 0) dados.descricao = linhasDescricao.join('\n');
     return encontrou_obra ? dados : null;
+}
+
+async function gerarRelatorio(sock, jid) {
+    return new Promise((resolve) => {
+        const proc = spawn(PYTHON, [SCRIPT_RELATORIO]);
+        let saida = '';
+        proc.stdout.on('data', d => saida += d.toString());
+        proc.on('close', async () => {
+            await sock.sendMessage(jid, { text: saida.trim() || '📊 Nenhum diário encontrado nesta semana.' });
+            resolve();
+        });
+    });
 }
 
 async function processarSessao(sock, groupId) {
@@ -144,6 +157,13 @@ async function iniciarBot() {
                 || '';
 
             console.log('Grupo MSG [' + jid + ']:', JSON.stringify(texto.substring(0, 100)));
+
+            // Comando RELATORIO
+            if (texto.trim().toUpperCase() === 'RELATORIO' || texto.trim().toUpperCase() === 'RELATÓRIO') {
+                await sock.sendMessage(jid, { text: '⏳ Gerando relatório semanal...' });
+                await gerarRelatorio(sock, jid);
+                continue;
+            }
 
             // Comando PRONTO
             if (texto.trim().toUpperCase() === 'PRONTO' && sessoes[jid]) {
