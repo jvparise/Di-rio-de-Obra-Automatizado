@@ -125,9 +125,14 @@ async function iniciarBot() {
         }
 
         if (connection === 'close') {
-            const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-            console.log('Conexão encerrada. Reconectando:', shouldReconnect);
-            if (shouldReconnect) iniciarBot();
+            const loggedOut = lastDisconnect?.error?.output?.statusCode === DisconnectReason.loggedOut;
+            if (loggedOut) {
+                console.log('Sessão encerrada pelo usuário. Escaneie o QR code novamente.');
+                process.exit(1);
+            } else {
+                console.log('Conexão perdida. PM2 vai reiniciar em instantes...');
+                process.exit(0);
+            }
         }
     });
 
