@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^7.0.0-rc13",
+    "exceljs": "^4.4.0",
     "qrcode": "^1.5.4",
     "sharp": "^0.35.2"
   },

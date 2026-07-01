@@ -1,14 +1,14 @@
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, downloadMediaMessage } = require('@whiskeysockets/baileys');
 const QRCode = require('qrcode');
-const { spawn } = require('child_process');
+const { exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
+const { criarDiario } = require('./criar_diario');
+const { gerarRelatorio: gerarRelatorioTexto } = require('./relatorio_semanal');
+
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8'));
 
-const PYTHON = config.python_path;
-const SCRIPT = path.join(__dirname, 'criar_diario.py');
-const SCRIPT_RELATORIO = path.join(__dirname, 'relatorio_semanal.py');
 const MEDIA_DIR = path.join(__dirname, 'media');
 const AUTH_DIR = path.join(__dirname, 'auth');
 const QR_PATH = path.join(__dirname, 'qrcode.png');
@@ -31,8 +31,7 @@ function parseMensagem(texto) {
         const chaveRaw = sep !== -1 ? linha.substring(0, sep).trim().toUpperCase() : '';
         const valor = sep !== -1 ? linha.substring(sep + 1).trim() : '';
 
-        // Detecta chaves conhecidas ou numéricas (workers)
-        const ehChaveConhecida = ['OBRA','TEMPO','DESCRICAO','DESCRIÇÃO'].includes(chaveRaw);
+        const ehChaveConhecida = ['OBRA', 'TEMPO', 'DESCRICAO', 'DESCRIÇÃO'].includes(chaveRaw);
         const ehWorker = chaveRaw && !isNaN(parseInt(valor)) && valor !== '';
 
         if (ehChaveConhecida || ehWorker) {
@@ -54,15 +53,8 @@ function parseMensagem(texto) {
 }
 
 async function gerarRelatorio(sock, jid) {
-    return new Promise((resolve) => {
-        const proc = spawn(PYTHON, [SCRIPT_RELATORIO]);
-        let saida = '';
-        proc.stdout.on('data', d => saida += d.toString());
-        proc.on('close', async () => {
-            await sock.sendMessage(jid, { text: saida.trim() || '📊 Nenhum diário encontrado nesta semana.' });
-            resolve();
-        });
-    });
+    const texto = await gerarRelatorioTexto(config.base_obras);
+    await sock.sendMessage(jid, { text: texto });
 }
 
 async function processarSessao(sock, groupId) {
@@ -70,37 +62,21 @@ async function processarSessao(sock, groupId) {
     if (!sessao) return;
     delete sessoes[groupId];
 
-    const tmpFile = path.join(MEDIA_DIR, `job_${Date.now()}.json`);
-    fs.writeFileSync(tmpFile, JSON.stringify({ dados: sessao.dados, fotos: sessao.fotos }), 'utf8');
-
-    const proc = spawn(PYTHON, [SCRIPT, tmpFile]);
-    let saida = '';
-    let erro = '';
-
-    proc.stdout.on('data', d => saida += d.toString());
-    proc.stderr.on('data', d => erro += d.toString());
-
-    proc.on('close', async code => {
-        try { fs.unlinkSync(tmpFile); } catch (_) {}
+    const jid = groupId;
+    try {
+        const r = await criarDiario(sessao.dados, sessao.fotos, config);
         for (const foto of sessao.fotos) { try { fs.unlinkSync(foto); } catch (_) {} }
 
-        const jid = groupId;
-        if (code !== 0) {
-            await sock.sendMessage(jid, { text: `❌ Erro ao criar diário:\n${erro.substring(0, 300)}` });
-            return;
+        if (r.sucesso) {
+            const pdfInfo = r.pdf ? `\n📄 PDF gerado!` : '';
+            await sock.sendMessage(jid, { text: `✅ *Diário criado!*\n📁 ${r.pasta}\n📸 Fotos: ${r.fotos}${pdfInfo}` });
+        } else {
+            await sock.sendMessage(jid, { text: `❌ Erro: ${r.erro}` });
         }
-        try {
-            const r = JSON.parse(saida);
-            if (r.sucesso) {
-                const pdfInfo = r.pdf ? `\n📄 PDF gerado!` : '';
-                await sock.sendMessage(jid, { text: `✅ *Diário criado!*\n📁 ${r.pasta}\n📸 Fotos: ${r.fotos}${pdfInfo}` });
-            } else {
-                await sock.sendMessage(jid, { text: `❌ Erro: ${r.erro}` });
-            }
-        } catch (_) {
-            await sock.sendMessage(jid, { text: '✅ Diário processado!' });
-        }
-    });
+    } catch (e) {
+        for (const foto of sessao.fotos) { try { fs.unlinkSync(foto); } catch (_) {} }
+        await sock.sendMessage(jid, { text: `❌ Erro ao criar diário:\n${String(e).substring(0, 300)}` });
+    }
 }
 
 async function iniciarBot() {
@@ -113,7 +89,6 @@ async function iniciarBot() {
 
         if (qr) {
             await QRCode.toFile(QR_PATH, qr, { width: 400 });
-            const { exec } = require('child_process');
             exec(`start "" "${QR_PATH}"`);
             console.log('✅ QR code salvo e aberto em: ' + QR_PATH);
             console.log('Escaneie com WhatsApp > Dispositivos conectados > Conectar dispositivo');
