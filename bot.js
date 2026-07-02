@@ -6,6 +6,7 @@ const fs = require('fs');
 
 const { criarDiario } = require('./criar_diario');
 const { gerarRelatorio: gerarRelatorioTexto } = require('./relatorio_semanal');
+const dns = require('dns');
 
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8'));
 
@@ -69,7 +70,9 @@ async function processarSessao(sock, groupId) {
 
         if (r.sucesso) {
             const pdfInfo = r.pdf ? `\n📄 PDF gerado!` : '';
-            await sock.sendMessage(jid, { text: `✅ *Diário criado!*\n📁 ${r.pasta}\n📸 Fotos: ${r.fotos}${pdfInfo}` });
+            const online = await new Promise(res => dns.lookup('google.com', e => res(!e)));
+            const driveInfo = online ? '\n☁️ Sincronizando com Google Drive...' : '\n☁️ Salvo localmente — sincroniza com Google Drive quando houver internet.';
+            await sock.sendMessage(jid, { text: `✅ *Diário criado!*\n📁 ${r.pasta}\n📸 Fotos: ${r.fotos}${pdfInfo}${driveInfo}` });
         } else {
             await sock.sendMessage(jid, { text: `❌ Erro: ${r.erro}` });
         }
